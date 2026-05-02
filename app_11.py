@@ -26,10 +26,10 @@ def load_data(ticker, years):
     end_date = today.strftime('%Y-%m-%d')
     
     try:
-        q_ticker = Quote(symbol=ticker, source='VCI')
+        q_ticker = Quote(symbol=ticker, source='KBS')
         df = q_ticker.history(start=start_date, end=end_date, interval="1D")
         
-        q_vni = Quote(symbol='VNINDEX', source='VCI')
+        q_vni = Quote(symbol='VNINDEX', source='KBS')
         df_vni = q_vni.history(start=start_date, end=end_date, interval="1D")
         
         if df.empty or df_vni.empty: return None, None
