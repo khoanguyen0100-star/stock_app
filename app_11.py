@@ -35,7 +35,7 @@ def load_data(ticker, years):
         
         if df.empty or df_vni.empty: return None, None, None
 
-        # Khối 1: Lấy chỉ số tài chính (Finance)
+        # Khối 1: Lấy chỉ số tài chính (SỬA LẠI LOGIC TRUY XUẤT)
         f = Finance(symbol=ticker, source="KBS")
         df_ratio = f.ratio(period="quarter")
 
@@ -49,7 +49,7 @@ def load_data(ticker, years):
         df_combined['ret_stock'] = np.log(df_combined['close'] / df_combined['close'].shift(1))
         df_combined['ret_vni'] = np.log(df_combined['close_vni'] / df_combined['close_vni'].shift(1))
         
-        # GARCH(1,1) thay cho Rolling Std
+        # GARCH(1,1)
         returns = df_combined['ret_stock'].dropna() * 100
         garch_m = arch_model(returns, vol='Garch', p=1, q=1, dist='normal')
         res_garch = garch_m.fit(disp='off')
@@ -64,7 +64,7 @@ df, df_vni, df_ratio = load_data(TICKER, YEARS_DATA)
 
 if df is not None:
     # 1. Tính Beta & Huấn luyện HMM
-    beta = df['ret_stock'].cov(df['ret_vni']) / df['ret_vni'].var()
+    beta_val = df['ret_stock'].cov(df['ret_vni']) / df['ret_vni'].var()
     X = df[['ret_stock', 'volatility']].values
     model = GaussianHMM(n_components=3, covariance_type="diag", n_iter=1000, random_state=42)
     model.fit(X)
@@ -74,18 +74,26 @@ if df is not None:
     curr_st = df['state'].iloc[-1]
     S0 = df['close'].iloc[-1]
 
-    # --- KHỐI TÀI CHÍNH (NEW) ---
+    # --- KHỐI TÀI CHÍNH (FIXED TRUY XUẤT THEO ITEM_ID) ---
     st.subheader(f"💎 Chỉ số tài chính cốt lõi: {TICKER}")
-    if not df_ratio.empty:
-        last_r = df_ratio.iloc[-1]
+    if df_ratio is not None and not df_ratio.empty:
+        # Lấy cột thời gian mới nhất (cột thứ 3 thường là quý gần nhất theo output mẫu)
+        latest_col = df_ratio.columns[2] 
+        
+        def get_val(item_id):
+            try:
+                val = df_ratio.loc[df_ratio['item_id'] == item_id, latest_col].values[0]
+                return float(val)
+            except: return 0.0
+
         r1, r2, r3, r4 = st.columns(4)
-        r1.metric("P/E Quarter", f"{last_r.get('priceToEarning', 0):.2f}")
-        r2.metric("P/B Quarter", f"{last_r.get('priceToBook', 0):.2f}")
-        r3.metric("ROE", f"{last_r.get('roe', 0)*100:.1f}%")
-        r4.metric("Vốn hóa (Tỷ)", f"{last_r.get('marketCap', 0)/1e9:,.0f}")
+        r1.metric(f"P/E ({latest_col})", f"{get_val('p_e'):.2f}")
+        r2.metric(f"P/B ({latest_col})", f"{get_val('p_b'):.2f}")
+        r3.metric("ROE (Trailling)", f"{get_val('roe_trailling'):.1f}%")
+        r4.metric("Tăng trưởng LNST", f"{get_val('profit_after_tax_for_shareholders_of_the_parent_company'):.1f}%")
     st.divider()
 
-    # --- KHỐI BACKTEST (NEW) ---
+    # --- KHỐI BACKTEST ---
     st.subheader("📈 Kiểm định hiệu quả chiến lược (Backtest)")
     df['strategy_ret'] = np.where(df['state'].shift(1) == 1, df['ret_stock'], 0)
     df['cum_market'] = np.exp(df['ret_stock'].cumsum())
@@ -109,7 +117,7 @@ if df is not None:
     st.pyplot(fig_bt)
     st.divider()
 
-    # 2. Monte Carlo (Giữ nguyên gốc)
+    # 2. Monte Carlo
     state_info = df[df['state'] == curr_st]
     mu, sigma = state_info['ret_stock'].mean(), state_info['ret_stock'].std()
     daily_returns = np.exp((mu - 0.5 * sigma**2) + sigma * np.random.standard_normal((DAYS_TO_PREDICT, N_SIM)))
@@ -121,18 +129,18 @@ if df is not None:
     final_prices = price_paths[-1, :]
     expected_price = np.mean(final_prices)
     expected_return = (expected_price - S0) / S0 * 100
-    win_rate = np.mean(final_prices > S0) * 100
+    win_rate_val = np.mean(final_prices > S0) * 100
     p25, p50, p75 = np.percentile(final_prices, [25, 50, 75])
 
     # Hiển thị Metric gốc
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Giá hiện tại", f"{S0:,.0f} đ")
     c2.metric("Giá kỳ vọng", f"{expected_price:,.0f} đ", f"{expected_return:+.1f}%")
-    c3.metric("Xác suất lãi", f"{win_rate:.1f}%")
-    c4.metric("Hệ số Beta", f"{beta:.2f}")
+    c3.metric("Xác suất lãi", f"{win_rate_val:.1f}%")
+    c4.metric("Hệ số Beta", f"{beta_val:.2f}")
     c5.metric("Trạng thái hiện tại", state_desc[curr_st])
 
-    # BIỂU ĐỒ 3 TẦNG (Giữ nguyên gốc)
+    # BIỂU ĐỒ 3 TẦNG
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 18), gridspec_kw={'height_ratios': [2, 1, 1.5]})
     fig.patch.set_facecolor('#0E1117') 
 
