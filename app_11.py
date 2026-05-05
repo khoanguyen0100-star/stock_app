@@ -100,7 +100,7 @@ if df is not None:
     # Tầng 1: Giá & VNINDEX
     scale = 1000 if last_price < 1000 else 1
     ax1_vni = ax1.twinx()
-    ax1_vni.plot(df.index, df['close_vni'], color='grey', alpha=0.3, linestyle='--', label='VNINDEX')
+    ax1_vni.plot(df.index, df['close_vni'], color='orange', alpha=0.3, linestyle='--', label='VNINDEX')
     ax1_vni.tick_params(axis='y', colors='white')
     
     ax1.plot(df.index, df['close'] * scale, color='#1E90FF', alpha=0.3)
