@@ -6,3 +6,5 @@ seaborn
 hmmlearn
 vnstock
 scipy
+streamlit
+arch
