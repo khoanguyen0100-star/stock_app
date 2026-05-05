@@ -112,7 +112,7 @@ if df is not None:
     plt.style.use('dark_background')
     fig_bt.patch.set_facecolor('#0E1117')
     ax_bt.plot(df.index, df['cum_strategy'], label='Chiến lược HMM', color='#00FF00')
-    ax_bt.plot(df.index, df['cum_market'], label='VNINDEX (Hold)', color='white', alpha=0.3)
+    ax_bt.plot(df.index, df['cum_market'], label='VNINDEX', color='white', alpha=0.3)
     ax_bt.legend()
     st.pyplot(fig_bt)
     st.divider()
