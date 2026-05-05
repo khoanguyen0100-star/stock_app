@@ -88,7 +88,8 @@ if df is not None:
         r1, r2, r3, r4 = st.columns(4)
         r1.metric(f"P/E ({latest_col})", f"{get_val('p_e'):.2f}")
         r2.metric(f"P/B ({latest_col})", f"{get_val('p_b'):.2f}")
-        r3.metric(f"ROE ({latest_col})", f"{get_val('roe')*100:.2f}%") 
+        # FIX: Bỏ nhân 100 vì dữ liệu thô đã ở dạng phần trăm (%)
+        r3.metric(f"ROE ({latest_col})", f"{get_val('roe'):.2f}%") 
         r4.metric("Tăng trưởng LNST (YoY)", f"{get_val('profit_after_tax_for_shareholders_of_the_parent_company'):.1f}%")
     st.divider()
 
@@ -136,12 +137,13 @@ if df is not None:
     # --- TOP METRICS ---
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Giá hiện tại", f"{S0:,.0f} đ")
+    # FIX: Chuyển sang định dạng .1f}% để tránh bị Streamlit nhân 100 lần đơn vị phần trăm
     c2.metric("Giá kỳ vọng", f"{expected_price:,.0f} đ", f"{expected_return:+.1f}%")
     c3.metric("Xác suất lãi", f"{win_rate_val:.1f}%")
     c4.metric("Hệ số Beta", f"{beta_val:.2f}")
     c5.metric("Trạng thái hiện tại", state_desc[curr_st])
 
-    # --- KHỐI THÔNG BÁO KHUYẾN NGHỊ (MỚI THÊM) ---
+    # --- KHỐI THÔNG BÁO KHUYẾN NGHỊ ---
     st.write("")
     if curr_st == 1:
         st.success(f"🚀 **KHUYẾN NGHỊ: MUA / TIẾP TỤC NẮM GIỮ** (Hệ thống xác nhận trạng thái {state_desc[curr_st]})")
@@ -158,7 +160,7 @@ if df is not None:
     ax1_vni = ax1.twinx()
     ax1_vni.plot(df.index, df['close_vni'], color='pink', alpha=0.15, linestyle='--')
     ax1.plot(df.index, df['close'], color='white', alpha=0.3)
-    colors_hmm = ['#FFFF00', '#00FF00', '#FF0000'] # Đã chỉnh lại mapping màu: 0-Vàng, 1-Xanh, 2-Đỏ
+    colors_hmm = ['#FFFF00', '#00FF00', '#FF0000'] # 0-Vàng, 1-Xanh, 2-Đỏ
     for i in range(3):
         st_data = df[df['state'] == i]
         ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=25, label=state_desc[i])
@@ -190,7 +192,8 @@ if df is not None:
         st.table(pd.DataFrame({
             "Kịch bản": ["Thận trọng (P25)", "Trung vị (P50)", "Kỳ vọng", "Lạc quan (P75)"],
             "Giá dự báo": [f"{p25:,.0f} đ", f"{p50:,.0f} đ", f"{expected_price:,.0f} đ", f"{p75:,.0f} đ"],
-            "Lợi nhuận": [f"{(p25-S0)/S0:+.1%}", f"{(p50-S0)/S0:+.1%}", f"{expected_return:+.1%}", f"{(p75-S0)/S0:+.1%}"]
+            # FIX: Chia cho 100 phần expected_return để sử dụng định dạng .1% chuẩn xác trong bảng
+            "Lợi nhuận": [f"{(p25-S0)/S0:+.1%}", f"{(p50-S0)/S0:+.1%}", f"{expected_return/100:+.1%}", f"{(p75-S0)/S0:+.1%}"]
         }))
     with col_t2:
         st.write("**Ma trận chuyển trạng thái (HMM Transition):**")
