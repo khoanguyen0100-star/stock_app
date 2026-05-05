@@ -136,7 +136,7 @@ if df is not None:
     # --- TOP METRICS ---
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Giá hiện tại", f"{S0:,.0f} đ")
-    c2.metric("Giá kỳ vọng", f"{expected_price:,.0f} đ", f"{expected_return:+.1%}")
+    c2.metric("Giá kỳ vọng", f"{expected_price:,.0f} đ", f"{expected_return:+.1f}%")
     c3.metric("Xác suất lãi", f"{win_rate_val:.1f}%")
     c4.metric("Hệ số Beta", f"{beta_val:.2f}")
     c5.metric("Trạng thái hiện tại", state_desc[curr_st])
