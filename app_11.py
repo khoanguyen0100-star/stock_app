@@ -7,7 +7,7 @@ from hmmlearn.hmm import GaussianHMM
 from vnstock import Quote
 from datetime import datetime, timedelta
 from scipy.stats import gaussian_kde
-from arch import arch_model  # THÊM MỚI
+from arch import arch_model
 
 # --- CẤU HÌNH TRANG WEB ---
 st.set_page_config(page_title="Phân tích & Dự báo Chứng khoán", layout="wide")
