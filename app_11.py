@@ -93,7 +93,7 @@ if df is not None:
     st.divider()
 
     # --- KHỐI BACKTEST (Khối 2) ---
-    st.subheader("📈 Kiểm định hiệu quả chiến lược (Backtest)")
+    st.subheader("📈 Kiểm định hiệu quả chiến lược (Backtest theo số năm dữ liệu lịch sử)")
     df['strategy_ret'] = np.where(df['state'].shift(1) == 1, df['ret_stock'], 0)
     df['cum_market'] = np.exp(df['ret_stock'].cumsum())
     df['cum_strategy'] = np.exp(df['strategy_ret'].cumsum())
@@ -104,14 +104,14 @@ if df is not None:
 
     b1, b2, b3 = st.columns(3)
     b1.metric("Lợi nhuận HMM", f"{total_ret:.1f}%", f"{total_ret-mkt_ret:+.1f}% vs VNINDEX")
-    b2.metric("Lợi nhuận Buy & Hold", f"{mkt_ret:.1f}%")
+    b2.metric("Lợi nhuận chỉ mua và giữ", f"{mkt_ret:.1f}%")
     b3.metric("Sụt giảm tối đa (MDD)", f"{max_dd:.1f}%")
 
     fig_bt, ax_bt = plt.subplots(figsize=(14, 4))
     plt.style.use('dark_background')
     fig_bt.patch.set_facecolor('#0E1117')
     ax_bt.plot(df.index, df['cum_strategy'], label='Chiến lược HMM', color='#00FF00', lw=2)
-    ax_bt.plot(df.index, df['cum_market'], label='VNINDEX (Hold)', color='white', alpha=0.3)
+    ax_bt.plot(df.index, df['cum_market'], label='Chiến lược chỉ mua và giữ', color='white', alpha=0.3)
     ax_bt.set_title("Đường cong tăng trưởng tài sản (Equity Curve)")
     ax_bt.legend()
     st.pyplot(fig_bt)
@@ -147,7 +147,7 @@ if df is not None:
 
     # Tầng 1: HMM Scatter
     ax1_vni = ax1.twinx()
-    ax1_vni.plot(df.index, df['close_vni'], color='orange', alpha=0.15, linestyle='--')
+    ax1_vni.plot(df.index, df['close_vni'], color='pink', alpha=0.15, linestyle='--')
     ax1.plot(df.index, df['close'], color='white', alpha=0.3)
     colors_hmm = ['#00FF00', '#FFFF00', '#FF0000'] 
     for i in range(3):
