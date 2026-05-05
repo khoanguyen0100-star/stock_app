@@ -75,7 +75,7 @@ if df is not None:
     curr_st = df['state'].iloc[-1]
     S0 = df['close'].iloc[-1]
 
-    # --- KHỐI TÀI CHÍNH (Đã đồng bộ ROE quý gần nhất) ---
+    # --- KHỐI TÀI CHÍNH ---
     st.subheader(f"💎 Chỉ số tài chính cốt lõi: {TICKER}")
     if df_ratio is not None and not df_ratio.empty:
         latest_col = df_ratio.columns[2] 
@@ -92,7 +92,7 @@ if df is not None:
         r4.metric("Tăng trưởng LNST (YoY)", f"{get_val('profit_after_tax_for_shareholders_of_the_parent_company'):.1f}%")
     st.divider()
 
-    # --- KHỐI BACKTEST (Khối 2) ---
+    # --- KHỐI BACKTEST ---
     st.subheader("📈 Kiểm định hiệu quả chiến lược (Backtest theo số năm dữ liệu lịch sử)")
     df['strategy_ret'] = np.where(df['state'].shift(1) == 1, df['ret_stock'], 0)
     df['cum_market'] = np.exp(df['ret_stock'].cumsum())
@@ -136,12 +136,21 @@ if df is not None:
     # --- TOP METRICS ---
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Giá hiện tại", f"{S0:,.0f} đ")
-    c2.metric("Giá kỳ vọng", f"{expected_price:,.0f} đ", f"{expected_return:+.1f}%")
+    c2.metric("Giá kỳ vọng", f"{expected_price:,.0f} đ", f"{expected_return:+.1%}")
     c3.metric("Xác suất lãi", f"{win_rate_val:.1f}%")
     c4.metric("Hệ số Beta", f"{beta_val:.2f}")
     c5.metric("Trạng thái hiện tại", state_desc[curr_st])
 
-    # --- BIỂU ĐỒ 3 TẦNG (HMM - VOLUME - MONTE CARLO) ---
+    # --- KHỐI THÔNG BÁO KHUYẾN NGHỊ (MỚI THÊM) ---
+    st.write("")
+    if curr_st == 1:
+        st.success(f"🚀 **KHUYẾN NGHỊ: MUA / TIẾP TỤC NẮM GIỮ** (Hệ thống xác nhận trạng thái {state_desc[curr_st]})")
+    elif curr_st == 2:
+        st.error(f"⚠️ **KHUYẾN NGHỊ: THOÁT HÀNG / ĐỨNG NGOÀI** (Hệ thống xác nhận trạng thái {state_desc[curr_st]})")
+    else:
+        st.warning(f"⏳ **KHUYẾN NGHỊ: THEO DÕI / CHỜ ĐỢI** (Hệ thống xác nhận trạng thái {state_desc[curr_st]})")
+
+    # --- BIỂU ĐỒ 3 TẦNG ---
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 18), gridspec_kw={'height_ratios': [2, 1, 1.5]})
     fig.patch.set_facecolor('#0E1117') 
 
@@ -149,7 +158,7 @@ if df is not None:
     ax1_vni = ax1.twinx()
     ax1_vni.plot(df.index, df['close_vni'], color='pink', alpha=0.15, linestyle='--')
     ax1.plot(df.index, df['close'], color='white', alpha=0.3)
-    colors_hmm = ['#00FF00', '#FFFF00', '#FF0000'] 
+    colors_hmm = ['#FFFF00', '#00FF00', '#FF0000'] # Đã chỉnh lại mapping màu: 0-Vàng, 1-Xanh, 2-Đỏ
     for i in range(3):
         st_data = df[df['state'] == i]
         ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=25, label=state_desc[i])
