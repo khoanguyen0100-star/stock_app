@@ -113,7 +113,7 @@ if df is not None:
         st_data = df[df['state'] == i]
         ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=30, label=state_desc[i], edgecolors='black', linewidth=0.5)
     
-    ax1.set_title(f"Phân tích trạng thái HMM: {TICKER}", fontsize=16, fontweight='bold')
+    ax1.set_title(f"Tương quan giữa {TICKER} và VNINDEX", fontsize=16, fontweight='bold')
     ax1.legend(loc='upper left')
 
     # Tầng 2: Volume
@@ -154,7 +154,7 @@ if df is not None:
         }))
 
     with col_t2:
-        st.write("**Ma trận xác suất chuyển trạng thái (Next day):**")
+        st.write("**Ma trận xác suất chuyển trạng thái:**")
         fig_h, ax_h = plt.subplots(figsize=(10, 5))
         fig_h.patch.set_facecolor('#0E1117')
         sns.heatmap(model.transmat_, annot=True, fmt=".2f", cmap='viridis',
