@@ -7,6 +7,7 @@ from hmmlearn.hmm import GaussianHMM
 from vnstock import Quote
 from datetime import datetime, timedelta
 from scipy.stats import gaussian_kde
+from arch import arch_model  # THÊM MỚI
 
 # --- CẤU HÌNH TRANG WEB ---
 st.set_page_config(page_title="Phân tích & Dự báo Chứng khoán", layout="wide")
@@ -43,7 +44,16 @@ def load_data(ticker, years):
         
         df_combined['ret_stock'] = np.log(df_combined['close'] / df_combined['close'].shift(1))
         df_combined['ret_vni'] = np.log(df_combined['close_vni'] / df_combined['close_vni'].shift(1))
-        df_combined['volatility'] = df_combined['ret_stock'].rolling(window=10).std()
+        
+        # --- TÍNH VOLATILITY BẰNG GARCH(1,1) ---
+        returns = df_combined['ret_stock'].dropna() * 100
+        garch_m = arch_model(returns, vol='Garch', p=1, q=1, dist='normal')
+        res = garch_m.fit(disp='off')
+        
+        # Đưa volatility về cùng thang đo và khớp index
+        df_combined['volatility'] = res.conditional_volatility / 100
+        # ---------------------------------------
+
         df_combined = df_combined.dropna()
         
         return df_combined, df_vni
