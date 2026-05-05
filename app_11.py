@@ -158,7 +158,7 @@ if df is not None:
 
     # Tầng 1: HMM Scatter
     ax1_vni = ax1.twinx()
-    ax1_vni.plot(df.index, df['close_vni'], color='pink', alpha=0.15, linestyle='--')
+    ax1_vni.plot(df.index, df['close_vni'], color='white', alpha=0.15, linestyle='--')
     ax1.plot(df.index, df['close'], color='white', alpha=0.3)
     colors_hmm = ['#FFFF00', '#00FF00', '#FF0000'] # 0-Vàng, 1-Xanh, 2-Đỏ
     for i in range(3):
@@ -188,7 +188,7 @@ if df is not None:
     # --- BẢNG DỮ LIỆU & HEATMAP ---
     col_t1, col_t2 = st.columns(2)
     with col_t1:
-        st.write("**Bảng kịch bản dự báo:**")
+        st.write("**Bảng kịch bản dự báo theo percentiles:**")
         st.table(pd.DataFrame({
             "Kịch bản": ["Thận trọng (P25)", "Trung vị (P50)", "Kỳ vọng", "Lạc quan (P75)"],
             "Giá dự báo": [f"{p25:,.0f} đ", f"{p50:,.0f} đ", f"{expected_price:,.0f} đ", f"{p75:,.0f} đ"],
