@@ -111,8 +111,8 @@ if df is not None:
     r_col1, r_col2 = st.columns(2)
     
     with r_col1:
-        st.subheader("🛡️ Kế hoạch giao dịch (Risk Management)")
-        stop_loss = p25 * 0.98 # Cắt lỗ dưới vùng P25 2%
+        st.subheader("🛡️ Kế hoạch giao dịch")
+        stop_loss = p25 * 0.98 
         risk_amt = CAPITAL * RISK_PER_TRADE
         dist_to_sl = S0 - stop_loss
         
@@ -126,7 +126,7 @@ if df is not None:
         st.write(f"- **Điểm dừng lỗ tối ưu (SL):** {stop_loss:,.0f} đ")
         st.write(f"- **Số lượng cổ phiếu nên mua:** {shares_to_buy:,} CP")
         st.write(f"- **Tổng giá trị giải ngân:** {total_cost:,.0f} đ")
-        st.write(f"- **Tỷ lệ Reward/Risk:** {(expected_price - S0)/(S0 - stop_loss):.2f}")
+        st.write(f"- **Tỷ lệ Reward/Risk:** {(expected_price - S0)/(S0 - stop_loss) if dist_to_sl > 0 else 0:.2f}")
 
     with r_col2:
         st.subheader("📊 Chỉ số hiệu suất")
@@ -137,36 +137,33 @@ if df is not None:
 
     st.divider()
 
-    # --- BIỂU ĐỒ 3 TẦNG (SIZE GỌN) ---
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 12), gridspec_kw={'height_ratios': [2, 0.8, 1.2]})
-    fig.patch.set_facecolor('#0E1117') 
-
-    # Tầng 1: HMM Scatter
-   # --- BIỂU ĐỒ 3 TẦNG (CẬP NHẬT TẦNG 1 ĐỂ HIỂN THỊ VNINDEX) ---
+    # --- BIỂU ĐỒ 3 TẦNG ---
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 12), gridspec_kw={'height_ratios': [2, 0.8, 1.2]})
     fig.patch.set_facecolor('#0E1117') 
 
     # Tầng 1: HMM Scatter + VNINDEX tham chiếu
-    # 1. Tạo trục phụ cho VNINDEX
     ax1_vni = ax1.twinx() 
     ax1_vni.plot(df.index, df['close_vni'], color='white', alpha=0.1, linestyle='--', label='VNINDEX')
-    ax1_vni.set_ylabel("VNINDEX", color='white', alpha=0.2)
-    ax1_vni.tick_params(axis='y', colors='white', labelsize=8, alpha=0.2)
+    ax1_vni.set_ylabel("VNINDEX", color='white', alpha=0.3)
+    ax1_vni.tick_params(axis='y', colors='grey', labelsize=8) # Đã sửa lỗi alpha ở đây
 
-    # 2. Vẽ giá cổ phiếu chính (ax1)
     ax1.plot(df.index, df['close'], color='white', alpha=0.3)
     colors_hmm = ['#FFFF00', '#00FF00', '#FF0000']
     for i in range(3):
         st_data = df[df['state'] == i]
         ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=25, label=state_desc[i])
     
-    ax1.set_title(f"Phân tích trạng thái thị trường: {TICKER}", fontsize=12)
+    ax1.set_title(f"Phân tích trạng thái thị trường: {TICKER}", fontsize=12, color='white')
     ax1.legend(loc='upper left', fontsize=9)
+    ax1.set_facecolor('#0E1117')
+    ax1.tick_params(colors='white')
 
     # Tầng 2: Volume bar
     colors_vol = np.where(df['ret_stock'] >= 0, '#26a69a', '#ef5350')
     ax2.bar(df.index, df['volume'], color=colors_vol, alpha=0.7)
-    ax2.set_title("Khối lượng giao dịch", fontsize=10)
+    ax2.set_title("Khối lượng giao dịch", fontsize=10, color='white')
+    ax2.set_facecolor('#0E1117')
+    ax2.tick_params(colors='white')
 
     # Tầng 3: Monte Carlo KDE
     kde = gaussian_kde(final_prices)
@@ -175,8 +172,10 @@ if df is not None:
     ax3.fill_between(x_range, kde(x_range), where=(x_range >= S0), color='#00FF00', alpha=0.2)
     ax3.axvline(S0, color='white', linestyle='--', label='Giá hiện tại')
     ax3.axvline(expected_price, color='#FFFF00', label=f'Kỳ vọng: {expected_price:,.0f}')
-    ax3.set_title(f"Phân phối xác suất dự báo sau {DAYS_TO_PREDICT} ngày", fontsize=12)
+    ax3.set_title(f"Phân phối xác suất dự báo sau {DAYS_TO_PREDICT} ngày", fontsize=12, color='white')
     ax3.legend()
+    ax3.set_facecolor('#0E1117')
+    ax3.tick_params(colors='white')
 
     plt.tight_layout(pad=3.0)
     st.pyplot(fig)
@@ -218,6 +217,8 @@ if df is not None:
     fig_bt.patch.set_facecolor('#0E1117')
     ax_bt.plot(df.index, df['cum_strategy'], label='Chiến lược HMM', color='#00FF00', lw=2)
     ax_bt.plot(df.index, df['cum_market'], label='Mua & Giữ', color='white', alpha=0.3)
+    ax_bt.set_facecolor('#0E1117')
+    ax_bt.tick_params(colors='white')
     ax_bt.legend()
     st.pyplot(fig_bt)
 
