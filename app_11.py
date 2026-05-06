@@ -82,13 +82,7 @@ if df is not None:
     S0 = df['close'].iloc[-1]
 
     # --- KHỐI THÔNG BÁO KHUYẾN NGHỊ ---
-    st.subheader(f"🔍 Trạng thái hệ thống: {TICKER}")
-    if curr_st == 1:
-        st.success(f"🚀 **KHUYẾN NGHỊ: MUA / TIẾP TỤC NẮM GIỮ** (Hệ thống xác nhận trạng thái {state_desc[curr_st]})")
-    elif curr_st == 2:
-        st.error(f"⚠️ **KHUYẾN NGHỊ: THOÁT HÀNG / ĐỨNG NGOÀI** (Hệ thống xác nhận trạng thái {state_desc[curr_st]})")
-    else:
-        st.warning(f"⏳ **KHUYẾN NGHỊ: THEO DÕI / CHỜ ĐỢI** (Hệ thống xác nhận trạng thái {state_desc[curr_st]})")
+  
 
     # --- MONTE CARLO SIMULATION ---
     state_info = df[df['state'] == curr_st]
@@ -153,7 +147,7 @@ if df is not None:
         st_data = df[df['state'] == i]
         ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=25, label=state_desc[i])
     
-    ax1.set_title(f"Phân tích trạng thái thị trường: {TICKER}", fontsize=12, color='white')
+    ax1.set_title(f"Phân tích tương quan: {TICKER} giữa VNINDEX", fontsize=12, color='white')
     ax1.legend(loc='upper left', fontsize=9)
     ax1.set_facecolor('#0E1117')
     ax1.tick_params(colors='white')
@@ -184,7 +178,7 @@ if df is not None:
     st.divider()
     col_t1, col_t2 = st.columns(2)
     with col_t1:
-        st.write("**Bảng kịch bản dự báo:**")
+        st.write("**Kịch bản dự báo theo percentiles:**")
         st.table(pd.DataFrame({
             "Kịch bản": ["Thận trọng (P25)", "Trung vị (P50)", "Kỳ vọng", "Lạc quan (P75)"],
             "Giá dự báo": [f"{p25:,.0f} đ", f"{p50:,.0f} đ", f"{expected_price:,.0f} đ", f"{p75:,.0f} đ"],
