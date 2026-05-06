@@ -140,7 +140,7 @@ if df is not None:
     ax1_vni = ax1.twinx() 
     ax1_vni.plot(df.index, df['close_vni'], color='white', alpha=0.1, linestyle='--', label='VNINDEX')
     ax1_vni.set_ylabel("VNINDEX", color='white', alpha=0.3)
-    ax1_vni.tick_params(axis='y', colors='grey', labelsize=8) # Đã sửa lỗi alpha ở đây
+    ax1_vni.tick_params(axis='y', colors='yellow', labelsize=8) # Đã sửa lỗi alpha ở đây
 
     ax1.plot(df.index, df['close'], color='white', alpha=0.3)
     colors_hmm = ['#FFFF00', '#00FF00', '#FF0000']
