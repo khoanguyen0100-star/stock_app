@@ -142,13 +142,26 @@ if df is not None:
     fig.patch.set_facecolor('#0E1117') 
 
     # Tầng 1: HMM Scatter
+   # --- BIỂU ĐỒ 3 TẦNG (CẬP NHẬT TẦNG 1 ĐỂ HIỂN THỊ VNINDEX) ---
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 12), gridspec_kw={'height_ratios': [2, 0.8, 1.2]})
+    fig.patch.set_facecolor('#0E1117') 
+
+    # Tầng 1: HMM Scatter + VNINDEX tham chiếu
+    # 1. Tạo trục phụ cho VNINDEX
+    ax1_vni = ax1.twinx() 
+    ax1_vni.plot(df.index, df['close_vni'], color='white', alpha=0.1, linestyle='--', label='VNINDEX')
+    ax1_vni.set_ylabel("VNINDEX", color='white', alpha=0.2)
+    ax1_vni.tick_params(axis='y', colors='white', labelsize=8, alpha=0.2)
+
+    # 2. Vẽ giá cổ phiếu chính (ax1)
     ax1.plot(df.index, df['close'], color='white', alpha=0.3)
     colors_hmm = ['#FFFF00', '#00FF00', '#FF0000']
     for i in range(3):
         st_data = df[df['state'] == i]
         ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=25, label=state_desc[i])
+    
     ax1.set_title(f"Phân tích trạng thái thị trường: {TICKER}", fontsize=12)
-    ax1.legend(loc='upper left')
+    ax1.legend(loc='upper left', fontsize=9)
 
     # Tầng 2: Volume bar
     colors_vol = np.where(df['ret_stock'] >= 0, '#26a69a', '#ef5350')
