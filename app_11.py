@@ -81,8 +81,9 @@ if df is not None:
     curr_st = df['state'].iloc[-1]
     S0 = df['close'].iloc[-1]
 
-    # --- KHỐI THÔNG BÁO KHUYẾN NGHỊ ---
-  
+    # --- KHỐI HIỂN THỊ GIÁ HIỆN TẠI ---
+    st.subheader(f"📊 Dữ liệu thực tế: {TICKER}")
+    st.metric("Giá hiện tại", f"{S0:,.0f} đ") 
 
     # --- MONTE CARLO SIMULATION ---
     state_info = df[df['state'] == curr_st]
