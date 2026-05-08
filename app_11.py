@@ -91,7 +91,18 @@ if df is not None:
 
     # --- KHỐI HIỂN THỊ GIÁ HIỆN TẠI ---
     st.subheader(f"📊 Dữ liệu thực tế: {TICKER}")
-    st.metric("Giá hiện tại", f"{S0:,.0f} đ") 
+    col_price, col_state = st.columns(2)
+    with col_price:
+        st.metric("Giá hiện tại", f"{S0:,.0f} đ") 
+    
+    # --- PHẦN IN TRẠNG THÁI HIỆN TẠI RA MÀN HÌNH ---
+    with col_state:
+        if curr_st == 1:
+            st.success(f"Trạng thái hiện tại: {state_desc[curr_st]}")
+        elif curr_st == 0:
+            st.warning(f"Trạng thái hiện tại: {state_desc[curr_st]}")
+        else:
+            st.error(f"Trạng thái hiện tại: {state_desc[curr_st]}")
 
     # --- MONTE CARLO SIMULATION ---
     state_info = df[df['state'] == curr_st]
@@ -212,7 +223,7 @@ if df is not None:
     max_dd = (df['cum_strategy'] / df['cum_strategy'].cummax() - 1).min() * 100
 
     b1, b2, b3 = st.columns(3)
-    b1.metric("Lợi nhuận HMM", f"{total_ret:.1f}%", f"{total_ret-mkt_ret:+.1f}% vs Market")
+    b1.metric("Lợi nhuận HMM", f"{total_ret:.1f}%", f"{total_ret-mkt_ret:+.1%}")
     b2.metric("Lợi nhuận Mua & Giữ", f"{mkt_ret:.1f}%")
     b3.metric("Sụt giảm tối đa (MDD)", f"{max_dd:.1f}%")
 
