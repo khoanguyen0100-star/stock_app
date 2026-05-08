@@ -1,19 +1,12 @@
+import streamlit as st
 import numpy as np
-
 import pandas as pd
-
 import matplotlib.pyplot as plt
-
 import seaborn as sns
-
 from hmmlearn.hmm import GaussianHMM
-
 from vnstock import Quote
-
 from datetime import datetime, timedelta
-
 from scipy.stats import gaussian_kde
-
 from arch import arch_model
 
 # --- CẤU HÌNH TRANG WEB ---
@@ -39,72 +32,66 @@ def load_data(ticker, years):
     end_date = today.strftime('%Y-%m-%d')
     
     try:
-        # 1. Lấy dữ liệu từ Vnstock3 (Dùng nguồn VCI ổn định hơn)
-        stock = Vnstock().stock(symbol=ticker, source='VCI')
-        df = stock.trading.history(start=start_date, end=end_date)
-        
-        vni = Vnstock().stock(symbol='VNINDEX', source='VCI')
-        df_vni = vni.trading.history(start=start_date, end=end_date)
+        # 1. Lấy dữ liệu giá Stock & VNINDEX
+        q_ticker = Quote(symbol=ticker, source='KBS')
+        df = q_ticker.history(start=start_date, end=end_date, interval="1D")
+        q_vni = Quote(symbol='VNINDEX', source='KBS')
+        df_vni = q_vni.history(start=start_date, end=end_date, interval="1D")
         
         if df.empty or df_vni.empty: return None, None
 
-        # 2. Chuẩn hóa cột ngày và gộp dữ liệu
-        df['time'] = pd.to_datetime(df['time'])
-        df_vni['time'] = pd.to_datetime(df_vni['time'])
+        # 2. Chuẩn hóa giá
+        if df['close'].iloc[-1] < 1000: df['close'] = df['close'] * 1000
+        if df_vni['close'].mean() < 100: df_vni['close'] = df_vni['close'] * 1000
         
-        df = df.set_index('time')
-        df_vni = df_vni.set_index('time')
-        
+        # 3. Gộp dữ liệu & Tính Return
         df_combined = pd.merge(df[['close', 'volume']], df_vni[['close']], 
                                left_index=True, right_index=True, suffixes=('', '_vni'))
         
-        # 3. Tính Return & RS
         df_combined['ret_stock'] = np.log(df_combined['close'] / df_combined['close'].shift(1))
         df_combined['ret_vni'] = np.log(df_combined['close_vni'] / df_combined['close_vni'].shift(1))
         
+        # 4. Tính RS (Relative Strength - Sức mạnh tương quan)
         window = 20
         df_combined['rs_line'] = (df_combined['close'] / df_combined['close'].shift(window)) / \
                                  (df_combined['close_vni'] / df_combined['close_vni'].shift(window))
         
-        # 4. GARCH(1,1) Volatility
+        # 5. GARCH(1,1) Volatility
         returns = df_combined['ret_stock'].dropna() * 100
         garch_m = arch_model(returns, vol='Garch', p=1, q=1, dist='normal')
         res_garch = garch_m.fit(disp='off')
         df_combined['volatility'] = res_garch.conditional_volatility / 100
         
         return df_combined.dropna(), df_vni
-    except Exception as e:
-        st.error(f"Lỗi tải dữ liệu: {e}")
+    except:
         return None, None
 
 # --- THỰC THI PHÂN TÍCH ---
-df, df_vni_raw = load_data(TICKER, YEARS_DATA)
+df, df_vni = load_data(TICKER, YEARS_DATA)
 
 if df is not None:
-    # 1. HMM Training
+    # 1. Beta & HMM Training
+    beta_val = df['ret_stock'].cov(df['ret_vni']) / df['ret_vni'].var()
     X = df[['ret_stock', 'volatility']].values
     model = GaussianHMM(n_components=3, covariance_type="diag", n_iter=1000, random_state=42)
     model.fit(X)
     
-    # --- LOGIC SẮP XẾP TRẠNG THÁI (ĐẢM BẢO Ý NGHĨA) ---
+    # --- PHẦN THÊM VÀO: SẮP XẾP TRẠNG THÁI ---
     means = model.means_[:, 0]
-    order = np.argsort(means) # [Rủi ro, Tích lũy, Tăng mạnh]
+    order = np.argsort(means)  # Thứ tự: Rủi ro -> Tích lũy -> Tăng
     new_labels = {order[0]: 2, order[1]: 0, order[2]: 1}
     
     raw_states = model.predict(X)
     df['state'] = [new_labels[s] for s in raw_states]
+    # ----------------------------------------
     
     state_desc = {0: "Tích lũy (Đi ngang)", 1: "Xu hướng (Tăng mạnh)", 2: "Rủi ro (Biến động xấu)"}
     curr_st = df['state'].iloc[-1]
     S0 = df['close'].iloc[-1]
-    beta_val = df['ret_stock'].cov(df['ret_vni']) / df['ret_vni'].var()
 
-    # --- HIỂN THỊ METRICS ---
-    st.subheader(f"📊 Phân tích mã: {TICKER}")
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Giá hiện tại", f"{S0:,.0f} đ")
-    m2.metric("Trạng thái HMM", state_desc[curr_st])
-    m3.metric("Hệ số Beta", f"{beta_val:.2f}")
+    # --- KHỐI HIỂN THỊ GIÁ HIỆN TẠI ---
+    st.subheader(f"📊 Dữ liệu thực tế: {TICKER}")
+    st.metric("Giá hiện tại", f"{S0:,.0f} đ") 
 
     # --- MONTE CARLO SIMULATION ---
     state_info = df[df['state'] == curr_st]
@@ -118,18 +105,27 @@ if df is not None:
     
     final_prices = price_paths[-1, :]
     expected_price = np.mean(final_prices)
+    expected_return = (expected_price - S0) / S0 * 100
     win_rate_val = np.mean(final_prices > S0) * 100
     p25, p50, p75 = np.percentile(final_prices, [25, 50, 75])
 
-    # --- QUẢN TRỊ RỦI RO ---
+    # --- KHỐI QUẢN TRỊ RỦI RO & HIỆU SUẤT ---
     st.divider()
     r_col1, r_col2 = st.columns(2)
+    
     with r_col1:
         st.subheader("🛡️ Kế hoạch giao dịch")
         stop_loss = p25 * 0.98 
         risk_amt = CAPITAL * RISK_PER_TRADE
         dist_to_sl = S0 - stop_loss
-        shares_to_buy = int(risk_amt / dist_to_sl) if dist_to_sl > 0 else 0
         
-        st.write(f"- **Điểm dừng lỗ (SL):** {stop_loss:,.0f} đ")
-        st
+        if dist_to_sl > 0:
+            shares_to_buy = int(risk_amt / dist_to_sl)
+            total_cost = shares_to_buy * S0
+        else:
+            shares_to_buy = 0
+            total_cost = 0
+
+        st.write(f"- **Điểm dừng lỗ tối ưu (SL):** {stop_loss:,.0f} đ")
+        st.write(f"- **Số lượng cổ phiếu nên mua:** {shares_to_buy:,} CP")
+        st.write(f"- **Tổng giá trị giải ngân:** {total_cost
