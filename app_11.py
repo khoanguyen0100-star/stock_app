@@ -128,4 +128,102 @@ if df is not None:
 
         st.write(f"- **Điểm dừng lỗ tối ưu (SL):** {stop_loss:,.0f} đ")
         st.write(f"- **Số lượng cổ phiếu nên mua:** {shares_to_buy:,} CP")
-        st.write(f"- **Tổng giá trị giải ngân:** {total_cost
+        st.write(f"- **Tổng giá trị giải ngân:** {total_cost:,.0f} đ")
+        st.write(f"- **Tỷ lệ Reward/Risk:** {(expected_price - S0)/(S0 - stop_loss) if dist_to_sl > 0 else 0:.2f}")
+
+    with r_col2:
+        st.subheader("📊 Chỉ số hiệu suất")
+        st.metric("Xác suất tăng giá", f"{win_rate_val:.1f}%")
+        st.metric("Hệ số Beta (vs VNINDEX)", f"{beta_val:.2f}")
+        rs_status = "Khỏe hơn thị trường" if df['rs_line'].iloc[-1] > 1 else "Yếu hơn thị trường"
+        st.write(f"- **Sức mạnh tương quan (RS):** {rs_status}")
+
+    st.divider()
+
+    # --- BIỂU ĐỒ 3 TẦNG ---
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 12), gridspec_kw={'height_ratios': [2, 0.8, 1.2]})
+    fig.patch.set_facecolor('#0E1117') 
+
+    # Tầng 1: HMM Scatter + VNINDEX tham chiếu
+    ax1_vni = ax1.twinx() 
+    ax1_vni.plot(df.index, df['close_vni'], color='white', alpha=0.1, linestyle='--', label='VNINDEX')
+    ax1_vni.set_ylabel("VNINDEX", color='white', alpha=0.3)
+    ax1_vni.tick_params(axis='y', labelcolor='yellow', labelsize=8) 
+
+    ax1.plot(df.index, df['close'], color='white', alpha=0.3)
+    colors_hmm = ['#FFFF00', '#00FF00', '#FF0000']
+    for i in range(3):
+        st_data = df[df['state'] == i]
+        ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=25, label=state_desc[i])
+    
+    ax1.set_title(f"Phân tích tương quan: {TICKER} giữa VNINDEX", fontsize=12, color='white')
+    ax1.legend(loc='upper left', fontsize=9)
+    ax1.set_facecolor('#0E1117')
+    ax1.tick_params(colors='white')
+
+    # Tầng 2: Volume bar
+    colors_vol = np.where(df['ret_stock'] >= 0, '#26a69a', '#ef5350')
+    ax2.bar(df.index, df['volume'], color=colors_vol, alpha=0.7)
+    ax2.set_title("Khối lượng giao dịch", fontsize=10, color='white')
+    ax2.set_facecolor('#0E1117')
+    ax2.tick_params(colors='white')
+
+    # Tầng 3: Monte Carlo KDE
+    kde = gaussian_kde(final_prices)
+    x_range = np.linspace(min(final_prices), max(final_prices), 1000)
+    ax3.plot(x_range, kde(x_range), color="#00CCFF", lw=2)
+    ax3.fill_between(x_range, kde(x_range), where=(x_range >= S0), color='#00FF00', alpha=0.2)
+    ax3.axvline(S0, color='white', linestyle='--', label='Giá hiện tại')
+    ax3.axvline(expected_price, color='#FFFF00', label=f'Kỳ vọng: {expected_price:,.0f}')
+    ax3.set_title(f"Phân phối xác suất dự báo sau {DAYS_TO_PREDICT} ngày", fontsize=12, color='white')
+    ax3.legend()
+    ax3.set_facecolor('#0E1117')
+    ax3.tick_params(colors='white')
+
+    plt.tight_layout(pad=3.0)
+    st.pyplot(fig)
+
+    # --- BẢNG DỮ LIỆU & HEATMAP ---
+    st.divider()
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        st.write("**Kịch bản dự báo theo percentiles:**")
+        st.table(pd.DataFrame({
+            "Kịch bản": ["Thận trọng (P25)", "Trung vị (P50)", "Kỳ vọng", "Lạc quan (P75)"],
+            "Giá dự báo": [f"{p25:,.0f} đ", f"{p50:,.0f} đ", f"{expected_price:,.0f} đ", f"{p75:,.0f} đ"],
+            "Lợi nhuận": [f"{(p25-S0)/S0:+.1%}", f"{(p50-S0)/S0:+.1%}", f"{expected_return/100:+.1%}", f"{(p75-S0)/S0:+.1%}"]
+        }))
+    with col_t2:
+        st.write("**Ma trận chuyển trạng thái (HMM Transition):**")
+        fig_h, ax_h = plt.subplots(figsize=(4, 3))
+        sns.heatmap(model.transmat_, annot=True, fmt=".2f", cmap='viridis', 
+                    xticklabels=["S0","S1","S2"], yticklabels=["S0","S1","S2"], ax=ax_h, cbar=False)
+        st.pyplot(fig_h)
+
+    # --- KHỐI BACKTEST ---
+    st.divider()
+    st.subheader("📈 Kiểm định hiệu quả chiến lược (Backtest)")
+    df['strategy_ret'] = np.where(df['state'].shift(1) == 1, df['ret_stock'], 0)
+    df['cum_market'] = np.exp(df['ret_stock'].cumsum())
+    df['cum_strategy'] = np.exp(df['strategy_ret'].cumsum())
+    
+    total_ret = (df['cum_strategy'].iloc[-1] - 1) * 100
+    mkt_ret = (df['cum_market'].iloc[-1] - 1) * 100
+    max_dd = (df['cum_strategy'] / df['cum_strategy'].cummax() - 1).min() * 100
+
+    b1, b2, b3 = st.columns(3)
+    b1.metric("Lợi nhuận HMM", f"{total_ret:.1f}%", f"{total_ret-mkt_ret:+.1f}% vs Market")
+    b2.metric("Lợi nhuận Mua & Giữ", f"{mkt_ret:.1f}%")
+    b3.metric("Sụt giảm tối đa (MDD)", f"{max_dd:.1f}%")
+
+    fig_bt, ax_bt = plt.subplots(figsize=(14, 4))
+    fig_bt.patch.set_facecolor('#0E1117')
+    ax_bt.plot(df.index, df['cum_strategy'], label='Chiến lược HMM', color='#00FF00', lw=2)
+    ax_bt.plot(df.index, df['cum_market'], label='Mua & Giữ', color='white', alpha=0.3)
+    ax_bt.set_facecolor('#0E1117')
+    ax_bt.tick_params(colors='white')
+    ax_bt.legend()
+    st.pyplot(fig_bt)
+
+else:
+    st.error("⚠️ Không thể tải dữ liệu. Vui lòng kiểm tra lại mã cổ phiếu.")
