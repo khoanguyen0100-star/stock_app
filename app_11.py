@@ -221,6 +221,10 @@ if df is not None:
     total_ret = (df['cum_strategy'].iloc[-1] - 1) * 100
     mkt_ret = (df['cum_market'].iloc[-1] - 1) * 100
     max_dd = (df['cum_strategy'] / df['cum_strategy'].cummax() - 1).min() * 100
+    # TÍNH TOÁN TRƯỚC (Phải nằm trên dòng b1.metric)
+    total_ret = (df['cum_strategy'].iloc[-1] - 1) * 100
+    mkt_ret = (df['cum_market'].iloc[-1] - 1) * 100
+    diff = total_ret - mkt_ret  # ĐẢM BẢO CÓ DÒNG NÀY
 
     b1, b2, b3 = st.columns(3)
     b1.metric("Lợi nhuận HMM", f"{total_ret:.1f}%", delta=f"{diff:+.1f}% vs Market")
