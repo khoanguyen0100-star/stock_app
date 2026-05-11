@@ -8,3 +8,4 @@ vnstock
 scipy
 streamlit
 arch
+plotly
