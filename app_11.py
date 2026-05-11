@@ -6,7 +6,6 @@ import seaborn as sns
 from hmmlearn.hmm import GaussianHMM
 from vnstock import Quote
 from datetime import datetime, timedelta
-from scipy.stats import gaussian_kde
 from arch import arch_model
 
 # --- 1. CẤU HÌNH TRANG WEB ---
@@ -40,6 +39,10 @@ def load_data(ticker, years):
 
         if df['close'].iloc[-1] < 1000: df['close'] = df['close'] * 1000
         
+        # Đảm bảo index là DatetimeIndex
+        df.index = pd.to_datetime(df.index)
+        df_vni.index = pd.to_datetime(df_vni.index)
+        
         df_combined = pd.merge(df[['close', 'volume']], df_vni[['close']], 
                                left_index=True, right_index=True, suffixes=('', '_vni'))
         
@@ -62,13 +65,13 @@ def load_data(ticker, years):
 df, df_vni = load_data(TICKER, YEARS_DATA)
 
 if df is not None:
-    # HMM Training & State Sorting
+    # HMM Training
     X = df[['ret_stock', 'volatility']].values
     model = GaussianHMM(n_components=3, covariance_type="diag", n_iter=1000, random_state=42).fit(X)
     
     means = model.means_[:, 0]
     order = np.argsort(means)  
-    new_labels = {order[0]: 2, order[1]: 0, order[2]: 1} # 2:Rủi ro, 0:Tích lũy, 1:Tăng
+    new_labels = {order[0]: 2, order[1]: 0, order[2]: 1} 
     df['state'] = [new_labels[s] for s in model.predict(X)]
     
     state_desc = {0: "Tích lũy (Đi ngang)", 1: "Xu hướng (Tăng mạnh)", 2: "Rủi ro (Biến động xấu)"}
@@ -77,7 +80,6 @@ if df is not None:
 
     # Monte Carlo Simulation
     state_info = df[df['state'] == curr_st]
-    # Fallback nếu dữ liệu trạng thái quá ít
     if len(state_info) < 5: state_info = df
     
     mu, sigma = state_info['ret_stock'].mean(), state_info['ret_stock'].std()
@@ -88,7 +90,6 @@ if df is not None:
     for t in range(1, DAYS_TO_PREDICT + 1):
         price_paths[t] = price_paths[t-1] * daily_returns[t-1]
 
-    # Chỉ số thống kê
     final_prices = price_paths[-1, :]
     win_rate_val = np.mean(final_prices > S0) * 100
     p25, p50, p75 = np.percentile(final_prices, [25, 50, 75])
@@ -114,7 +115,6 @@ if df is not None:
         dist_to_sl = S0 - stop_loss
         risk_amt = CAPITAL * RISK_PER_TRADE
         
-        # Sửa lỗi mua quá số vốn (Logic Position Sizing)
         if dist_to_sl > 0:
             shares_potential = int(risk_amt / dist_to_sl)
             shares_to_buy = min(shares_potential, int(CAPITAL / S0))
@@ -129,10 +129,10 @@ if df is not None:
         st.subheader("📊 Chỉ số Quant")
         beta_val = df['ret_stock'].cov(df['ret_vni']) / df['ret_vni'].var()
         st.write(f"- **Hệ số Beta:** {beta_val:.2f}")
-        st.write(f"- **Sức mạnh RS (20D):** {'Khỏe' if df['rs_line'].iloc[-1] > 1 else 'Yếu'} hơn VNINDEX")
+        st.write(f"- **Sức mạnh RS (20D):** {'Khỏe' if df['rs_line'].iloc[-1] > 1 else 'Yêu'} hơn VNINDEX")
         st.write(f"- **Lợi nhuận kỳ vọng:** {((expected_price/S0)-1)*100:+.1f}%")
 
-    # --- 5. BIỂU ĐỒ 4 TẦNG TIÊU CHUẨN ---
+    # --- 5. BIỂU ĐỒ (FIX LỖI DATETIME) ---
     st.divider()
     fig = plt.figure(figsize=(14, 18), facecolor='#0E1117')
     gs = fig.add_gridspec(4, 1, height_ratios=[2, 0.8, 1.5, 1], hspace=0.3)
@@ -156,16 +156,19 @@ if df is not None:
     ax2.bar(df.index, df['volume'], color=colors_vol, alpha=0.5)
     ax2.set_title("VOLUME", color='white', loc='left')
 
-    # Tầng 3: Monte Carlo Cone
+    # Tầng 3: Monte Carlo Cone (FIXED LINE)
     ax3 = fig.add_subplot(gs[2])
-    forecast_dates = [df.index[-1] + timedelta(days=i) for i in range(DAYS_TO_PREDICT + 1)]
+    last_date = df.index[-1]
+    # Dùng pd.date_range hoặc pd.Timedelta để tránh lỗi cộng timedelta chuẩn
+    forecast_dates = pd.date_range(start=last_date, periods=DAYS_TO_PREDICT + 1)
+    
     ax3.fill_between(forecast_dates, np.percentile(price_paths, 5, axis=1), np.percentile(price_paths, 95, axis=1), color='#00CCFF', alpha=0.1)
     ax3.fill_between(forecast_dates, np.percentile(price_paths, 25, axis=1), np.percentile(price_paths, 75, axis=1), color='#00CCFF', alpha=0.2)
-    ax3.plot(forecast_dates, p50_path := np.percentile(price_paths, 50, axis=1), color='#00CCFF', lw=2)
+    ax3.plot(forecast_dates, np.percentile(price_paths, 50, axis=1), color='#00CCFF', lw=2)
     ax3.axhline(S0, color='white', linestyle='--', alpha=0.5)
     ax3.set_title("MONTE CARLO PRICE FORECAST (90% CI)", color='white', loc='left')
 
-    # Tầng 4: Backtest
+    # Tầng 4: Performance
     ax4 = fig.add_subplot(gs[3])
     df['strat_ret'] = np.where(df['state'].shift(1) == 1, df['ret_stock'], 0)
     df['cum_strat'] = np.exp(df['strat_ret'].cumsum())
@@ -190,4 +193,4 @@ if df is not None:
     }))
 
 else:
-    st.error("⚠️ Lỗi tải dữ liệu. Vui lòng kiểm tra lại mã cổ phiếu hoặc kết nối mạng.")
+    st.error("⚠️ Lỗi tải dữ liệu. Vui lòng kiểm tra lại mã cổ phiếu.")
