@@ -8,8 +8,6 @@ from vnstock import Quote
 from datetime import datetime, timedelta
 from scipy.stats import gaussian_kde
 from arch import arch_model
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 # --- CẤU HÌNH TRANG WEB ---
 st.set_page_config(page_title="Hệ thống Giao dịch Quant Pro", layout="wide")
@@ -85,6 +83,7 @@ if df is not None:
     
     raw_states = model.predict(X)
     df['state'] = [new_labels[s] for s in raw_states]
+    # ----------------------------------------
     
     state_desc = {0: "Tích lũy (Đi ngang)", 1: "Xu hướng (Tăng mạnh)", 2: "Rủi ro (Biến động xấu)"}
     curr_st = df['state'].iloc[-1]
@@ -96,6 +95,7 @@ if df is not None:
     with col_price:
         st.metric("Giá hiện tại", f"{S0:,.0f} đ") 
     
+    # --- PHẦN IN TRẠNG THÁI HIỆN TẠI RA MÀN HÌNH ---
     with col_state:
         if curr_st == 1:
             st.success(f"Trạng thái hiện tại: {state_desc[curr_st]}")
@@ -151,49 +151,50 @@ if df is not None:
 
     st.divider()
 
-    # --- BIỂU ĐỒ 1: GIÁ & VOLUME GỘP CHUNG (PLOTLY TƯƠNG TÁC) ---
-    fig_main = make_subplots(rows=2, cols=1, shared_xaxes=True, 
-                              vertical_spacing=0.03, subplot_titles=(f'Phân tích HMM: {TICKER}', 'Khối lượng'), 
-                              row_width=[0.3, 0.7])
+    # --- BIỂU ĐỒ 3 TẦNG ---
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 12), gridspec_kw={'height_ratios': [2, 0.8, 1.2]})
+    fig.patch.set_facecolor('#0E1117') 
 
-    # Vẽ đường giá mờ
-    fig_main.add_trace(go.Scatter(x=df.index, y=df['close'], line=dict(color='white', width=1), opacity=0.3, name='Giá đóng cửa'), row=1, col=1)
+    # Tầng 1: HMM Scatter + VNINDEX tham chiếu
+    ax1_vni = ax1.twinx() 
+    ax1_vni.plot(df.index, df['close_vni'], color='white', alpha=0.1, linestyle='--', label='VNINDEX')
+    ax1_vni.set_ylabel("VNINDEX", color='white', alpha=0.3)
+    ax1_vni.tick_params(axis='y', labelcolor='yellow', labelsize=8) 
 
-    # Vẽ các điểm trạng thái HMM
-    colors_hmm = {0: '#FFFF00', 1: '#00FF00', 2: '#FF0000'}
+    ax1.plot(df.index, df['close'], color='white', alpha=0.3)
+    colors_hmm = ['#FFFF00', '#00FF00', '#FF0000']
     for i in range(3):
         st_data = df[df['state'] == i]
-        fig_main.add_trace(go.Scatter(x=st_data.index, y=st_data['close'], mode='markers', 
-                                      marker=dict(size=6, color=colors_hmm[i]), name=state_desc[i]), row=1, col=1)
+        ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=25, label=state_desc[i])
+    
+    ax1.set_title(f"Phân tích tương quan: {TICKER} giữa VNINDEX", fontsize=12, color='white')
+    ax1.legend(loc='upper left', fontsize=9)
+    ax1.set_facecolor('#0E1117')
+    ax1.tick_params(colors='white')
 
-    # Vẽ Volume tầng dưới
-    vol_colors = ['#26a69a' if r >= 0 else '#ef5350' for r in df['ret_stock']]
-    fig_main.add_trace(go.Bar(x=df.index, y=df['volume'], marker_color=vol_colors, name='Volume', opacity=0.7), row=2, col=1)
+    # Tầng 2: Volume bar
+    colors_vol = np.where(df['ret_stock'] >= 0, '#26a69a', '#ef5350')
+    ax2.bar(df.index, df['volume'], color=colors_vol, alpha=0.7)
+    ax2.set_title("Khối lượng giao dịch", fontsize=10, color='white')
+    ax2.set_facecolor('#0E1117')
+    ax2.tick_params(colors='white')
 
-    fig_main.update_layout(height=600, template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0E1117', 
-                          xaxis_rangeslider_visible=False, showlegend=True, margin=dict(l=20, r=20, t=40, b=20))
-    st.plotly_chart(fig_main, use_container_width=True)
-
-    # --- BIỂU ĐỒ 2: DỰ BÁO MONTE CARLO (PLOTLY TƯƠNG TÁC) ---
+    # Tầng 3: Monte Carlo KDE
     kde = gaussian_kde(final_prices)
     x_range = np.linspace(min(final_prices), max(final_prices), 1000)
-    y_range = kde(x_range)
+    ax3.plot(x_range, kde(x_range), color="#00CCFF", lw=2)
+    ax3.fill_between(x_range, kde(x_range), where=(x_range >= S0), color='#00FF00', alpha=0.2)
+    ax3.axvline(S0, color='white', linestyle='--', label='Giá hiện tại')
+    ax3.axvline(expected_price, color='#FFFF00', label=f'Kỳ vọng: {expected_price:,.0f}')
+    ax3.set_title(f"Phân phối xác suất dự báo sau {DAYS_TO_PREDICT} ngày", fontsize=12, color='white')
+    ax3.legend()
+    ax3.set_facecolor('#0E1117')
+    ax3.tick_params(colors='white')
 
-    fig_mc = go.Figure()
-    fig_mc.add_trace(go.Scatter(x=x_range, y=y_range, fill='tozeroy', line_color='#00CCFF', name='Mật độ xác suất'))
-    
-    # Tô màu xanh vùng có lãi
-    mask = x_range >= S0
-    fig_mc.add_trace(go.Scatter(x=x_range[mask], y=y_range[mask], fill='tozeroy', fillcolor='rgba(0, 255, 0, 0.2)', line_color='rgba(0,0,0,0)', name='Vùng lợi nhuận'))
+    plt.tight_layout(pad=3.0)
+    st.pyplot(fig)
 
-    fig_mc.add_vline(x=S0, line_dash="dash", line_color="white", annotation_text="Giá hiện tại")
-    fig_mc.add_vline(x=expected_price, line_color="#FFFF00", annotation_text=f"Kỳ vọng: {expected_price:,.0f}")
-    
-    fig_mc.update_layout(height=400, template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0E1117', 
-                         title=f"Phân phối xác suất dự báo sau {DAYS_TO_PREDICT} ngày", margin=dict(l=20, r=20, t=40, b=20))
-    st.plotly_chart(fig_mc, use_container_width=True)
-
-    # --- BẢNG DỮ LIỆU & HEATMAP (GIỮ NGUYÊN SEABORN CHO MA TRẬN) ---
+    # --- BẢNG DỮ LIỆU & HEATMAP ---
     st.divider()
     col_t1, col_t2 = st.columns(2)
     with col_t1:
@@ -206,13 +207,11 @@ if df is not None:
     with col_t2:
         st.write("**Ma trận chuyển trạng thái (HMM Transition):**")
         fig_h, ax_h = plt.subplots(figsize=(4, 3))
-        fig_h.patch.set_facecolor('#0E1117')
         sns.heatmap(model.transmat_, annot=True, fmt=".2f", cmap='viridis', 
-                    xticklabels=["S0","S1","S2"], yticklabels=["S0","S1","S2"], ax=ax_h, cbar=False, annot_kws={"color": "white"})
-        ax_h.tick_params(colors='white')
+                    xticklabels=["S0","S1","S2"], yticklabels=["S0","S1","S2"], ax=ax_h, cbar=False)
         st.pyplot(fig_h)
 
-    # --- KHỐI BACKTEST (GIỮ NGUYÊN) ---
+    # --- KHỐI BACKTEST ---
     st.divider()
     st.subheader("📈 Kiểm định hiệu quả chiến lược (Backtest)")
     df['strategy_ret'] = np.where(df['state'].shift(1) == 1, df['ret_stock'], 0)
@@ -222,18 +221,24 @@ if df is not None:
     total_ret = (df['cum_strategy'].iloc[-1] - 1) * 100
     mkt_ret = (df['cum_market'].iloc[-1] - 1) * 100
     max_dd = (df['cum_strategy'] / df['cum_strategy'].cummax() - 1).min() * 100
-    diff = total_ret - mkt_ret
+    # TÍNH TOÁN TRƯỚC (Phải nằm trên dòng b1.metric)
+    total_ret = (df['cum_strategy'].iloc[-1] - 1) * 100
+    mkt_ret = (df['cum_market'].iloc[-1] - 1) * 100
+    diff = total_ret - mkt_ret  # ĐẢM BẢO CÓ DÒNG NÀY
 
     b1, b2, b3 = st.columns(3)
     b1.metric("Lợi nhuận HMM", f"{total_ret:.1f}%", delta=f"{diff:+.1f}% vs Market")
     b2.metric("Lợi nhuận Mua & Giữ", f"{mkt_ret:.1f}%")
     b3.metric("Sụt giảm tối đa (MDD)", f"{max_dd:.1f}%")
 
-    fig_bt = go.Figure()
-    fig_bt.add_trace(go.Scatter(x=df.index, y=df['cum_strategy'], name='Chiến lược HMM', line=dict(color='#00FF00', width=2)))
-    fig_bt.add_trace(go.Scatter(x=df.index, y=df['cum_market'], name='Mua & Giữ', line=dict(color='white', width=1), opacity=0.3))
-    fig_bt.update_layout(height=400, template='plotly_dark', paper_bgcolor='#0E1117', plot_bgcolor='#0E1117', margin=dict(l=20, r=20, t=20, b=20))
-    st.plotly_chart(fig_bt, use_container_width=True)
+    fig_bt, ax_bt = plt.subplots(figsize=(14, 4))
+    fig_bt.patch.set_facecolor('#0E1117')
+    ax_bt.plot(df.index, df['cum_strategy'], label='Chiến lược HMM', color='#00FF00', lw=2)
+    ax_bt.plot(df.index, df['cum_market'], label='Mua & Giữ', color='white', alpha=0.3)
+    ax_bt.set_facecolor('#0E1117')
+    ax_bt.tick_params(colors='white')
+    ax_bt.legend()
+    st.pyplot(fig_bt)
 
 else:
     st.error("⚠️ Không thể tải dữ liệu. Vui lòng kiểm tra lại mã cổ phiếu.")
