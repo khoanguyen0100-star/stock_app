@@ -152,72 +152,64 @@ if df is not None:
     st.divider()
 
     # --- BIỂU ĐỒ 3 TẦNG ---
-   # --- PHẦN THAY THẾ: BIỂU ĐỒ 4 TẦNG CHUYÊN NGHIỆP ---
-    st.divider()
-    st.subheader("📈 Phân tích Kỹ thuật & Dự báo Monte Carlo")
-    
-    # Khởi tạo khung biểu đồ với 4 tầng
-    fig = plt.figure(figsize=(14, 16), facecolor='#0E1117')
-    gs = fig.add_gridspec(4, 1, height_ratios=[2, 0.8, 1.5, 1], hspace=0.3)
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 12), gridspec_kw={'height_ratios': [2, 0.8, 1.2]})
+    fig.patch.set_facecolor('#0E1117') 
 
-    # Tầng 1: HMM Trạng thái & VNINDEX
-    ax1 = fig.add_subplot(gs[0])
-    ax1_vni = ax1.twinx()
-    ax1_vni.plot(df.index, df['close_vni'], color='#FFD700', alpha=0.15, linestyle='--', label='VNINDEX')
-    ax1_vni.tick_params(axis='y', labelcolor='#FFD700', labelsize=8)
-    
-    ax1.plot(df.index, df['close'], color='white', alpha=0.3, lw=1)
-    colors_hmm = ['#F4D03F', '#2ECC71', '#E74C3C'] # Vàng (Tích lũy), Xanh (Tăng), Đỏ (Rủi ro)
+    # Tầng 1: HMM Scatter + VNINDEX tham chiếu
+    ax1_vni = ax1.twinx() 
+    ax1_vni.plot(df.index, df['close_vni'], color='white', alpha=0.1, linestyle='--', label='VNINDEX')
+    ax1_vni.set_ylabel("VNINDEX", color='white', alpha=0.3)
+    ax1_vni.tick_params(axis='y', labelcolor='yellow', labelsize=8) 
+
+    ax1.plot(df.index, df['close'], color='white', alpha=0.3)
+    colors_hmm = ['#FFFF00', '#00FF00', '#FF0000']
     for i in range(3):
         st_data = df[df['state'] == i]
-        ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=20, label=state_desc[i])
+        ax1.scatter(st_data.index, st_data['close'], c=colors_hmm[i], s=25, label=state_desc[i])
     
-    ax1.set_title(f"TRẠNG THÁI THỊ TRƯỜNG & TƯƠNG QUAN VNINDEX", color='white', fontsize=12, loc='left')
-    ax1.legend(loc='upper left', facecolor='#0E1117', edgecolor='white', labelcolor='white', fontsize=9)
+    ax1.set_title(f"Phân tích tương quan: {TICKER} giữa VNINDEX", fontsize=12, color='white')
+    ax1.legend(loc='upper left', fontsize=9)
+    ax1.set_facecolor('#0E1117')
+    ax1.tick_params(colors='white')
 
-    # Tầng 2: Khối lượng (Volume)
-    ax2 = fig.add_subplot(gs[1])
-    colors_vol = np.where(df['ret_stock'] >= 0, '#2ECC71', '#E74C3C')
-    ax2.bar(df.index, df['volume'], color=colors_vol, alpha=0.6)
-    ax2.set_title("KHỐI LƯỢNG GIAO DỊCH", color='white', fontsize=10, loc='left')
+    # Tầng 2: Volume bar
+    colors_vol = np.where(df['ret_stock'] >= 0, '#26a69a', '#ef5350')
+    ax2.bar(df.index, df['volume'], color=colors_vol, alpha=0.7)
+    ax2.set_title("Khối lượng giao dịch", fontsize=10, color='white')
+    ax2.set_facecolor('#0E1117')
+    ax2.tick_params(colors='white')
 
-    # Tầng 3: MONTE CARLO CONE (Nón dự báo xác suất)
-    ax3 = fig.add_subplot(gs[2])
-    forecast_dates = [df.index[-1] + timedelta(days=i) for i in range(DAYS_TO_PREDICT + 1)]
-    
-    # Tính các dải xác suất
-    p_upper = np.percentile(price_paths, 95, axis=1)
-    p_lower = np.percentile(price_paths, 5, axis=1)
-    p_mid_upper = np.percentile(price_paths, 75, axis=1)
-    p_mid_lower = np.percentile(price_paths, 25, axis=1)
-    p_median = np.percentile(price_paths, 50, axis=1)
+    # Tầng 3: Monte Carlo KDE
+    kde = gaussian_kde(final_prices)
+    x_range = np.linspace(min(final_prices), max(final_prices), 1000)
+    ax3.plot(x_range, kde(x_range), color="#00CCFF", lw=2)
+    ax3.fill_between(x_range, kde(x_range), where=(x_range >= S0), color='#00FF00', alpha=0.2)
+    ax3.axvline(S0, color='white', linestyle='--', label='Giá hiện tại')
+    ax3.axvline(expected_price, color='#FFFF00', label=f'Kỳ vọng: {expected_price:,.0f}')
+    ax3.set_title(f"Phân phối xác suất dự báo sau {DAYS_TO_PREDICT} ngày", fontsize=12, color='white')
+    ax3.legend()
+    ax3.set_facecolor('#0E1117')
+    ax3.tick_params(colors='white')
 
-    ax3.fill_between(forecast_dates, p_lower, p_upper, color='#00CCFF', alpha=0.1, label='Vùng xác suất 90%')
-    ax3.fill_between(forecast_dates, p_mid_lower, p_mid_upper, color='#00CCFF', alpha=0.2, label='Vùng xác suất 50%')
-    ax3.plot(forecast_dates, p_median, color='#00CCFF', lw=2, label='Đường trung vị (P50)')
-    ax3.axhline(S0, color='white', linestyle='--', alpha=0.5, label='Giá hiện tại')
-    
-    ax3.set_title(f"MÔ PHỎNG BIẾN ĐỘ GIÁ {DAYS_TO_PREDICT} NGÀY TỚI", color='white', fontsize=12, loc='left')
-    ax3.legend(loc='upper left', facecolor='#0E1117', edgecolor='white', labelcolor='white', fontsize=9)
-
-    # Tầng 4: HIỆU SUẤT CHIẾN LƯỢC (Backtest Area)
-    ax4 = fig.add_subplot(gs[3])
-    ax4.fill_between(df.index, df['cum_strategy'], 1, where=(df['cum_strategy'] >= 1), color='#2ECC71', alpha=0.3)
-    ax4.fill_between(df.index, df['cum_strategy'], 1, where=(df['cum_strategy'] < 1), color='#E74C3C', alpha=0.3)
-    ax4.plot(df.index, df['cum_strategy'], color='#00FF00', lw=1.5, label='Lợi nhuận cộng dồn')
-    ax4.set_title("HIỆU SUẤT CHIẾN LƯỢC DỰA TRÊN TRẠNG THÁI HMM", color='white', fontsize=10, loc='left')
-
-    # Định dạng chung cho tất cả các trục
-    for ax in [ax1, ax2, ax3, ax4]:
-        ax.set_facecolor('#0E1117')
-        ax.tick_params(colors='white', labelsize=8)
-        ax.grid(True, alpha=0.1, color='white')
-        for spine in ax.spines.values():
-            spine.set_color('#444444')
-
-    plt.tight_layout()
+    plt.tight_layout(pad=3.0)
     st.pyplot(fig)
-    # --- HẾT PHẦN THAY THẾ ---
+
+    # --- BẢNG DỮ LIỆU & HEATMAP ---
+    st.divider()
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        st.write("**Kịch bản dự báo theo percentiles:**")
+        st.table(pd.DataFrame({
+            "Kịch bản": ["Thận trọng (P25)", "Trung vị (P50)", "Kỳ vọng", "Lạc quan (P75)"],
+            "Giá dự báo": [f"{p25:,.0f} đ", f"{p50:,.0f} đ", f"{expected_price:,.0f} đ", f"{p75:,.0f} đ"],
+            "Lợi nhuận": [f"{(p25-S0)/S0:+.1%}", f"{(p50-S0)/S0:+.1%}", f"{expected_return/100:+.1%}", f"{(p75-S0)/S0:+.1%}"]
+        }))
+    with col_t2:
+        st.write("**Ma trận chuyển trạng thái (HMM Transition):**")
+        fig_h, ax_h = plt.subplots(figsize=(4, 3))
+        sns.heatmap(model.transmat_, annot=True, fmt=".2f", cmap='viridis', 
+                    xticklabels=["S0","S1","S2"], yticklabels=["S0","S1","S2"], ax=ax_h, cbar=False)
+        st.pyplot(fig_h)
 
     # --- KHỐI BACKTEST ---
     st.divider()
