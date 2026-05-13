@@ -8,7 +8,7 @@ from vnstock.ui import Market
 from datetime import datetime, timedelta
 from scipy.stats import gaussian_kde
 from arch import arch_model
-
+mkt = Market()
 # --- CẤU HÌNH TRANG WEB ---
 st.set_page_config(page_title="Hệ thống Giao dịch Quant Pro", layout="wide")
 st.title("📊 Hệ thống Phân tích Định lượng HMM & Monte Carlo")
