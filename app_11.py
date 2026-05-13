@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from hmmlearn.hmm import GaussianHMM
-from vnstock import Quote
+from vnstock.ui import Market
 from datetime import datetime, timedelta
 from scipy.stats import gaussian_kde
 from arch import arch_model
@@ -33,10 +33,8 @@ def load_data(ticker, years):
     
     try:
         # 1. Lấy dữ liệu giá Stock & VNINDEX
-        q_ticker = Quote(symbol=ticker, source='KBS')
-        df = q_ticker.history(start=start_date, end=end_date, interval="1D")
-        q_vni = Quote(symbol='VNINDEX', source='KBS')
-        df_vni = q_vni.history(start=start_date, end=end_date, interval="1D")
+        df = mkt.equity(ticker).ohlcv(start=start_date, end=end_date)
+        df_vni = mkt.index("VNINDEX").ohlcv(start=start_date, end=end_date)
         
         if df.empty or df_vni.empty: return None, None
 
