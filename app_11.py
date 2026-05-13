@@ -34,7 +34,7 @@ def load_data(ticker, years):
     try:
         # 1. Lấy dữ liệu giá Stock & VNINDEX
         df = mkt.equity(ticker).ohlcv(start=start_date, end=end_date)
-        df_vni = mkt.index("VNINDEX").ohlcv(start=start_date, end=end_date)
+        df_vni = mkt.equity("VNINDEX").ohlcv(start=start_date, end=end_date)
         
         if df.empty or df_vni.empty: return None, None
 
