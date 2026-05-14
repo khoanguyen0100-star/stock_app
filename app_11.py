@@ -388,10 +388,28 @@ if df is not None:
             f"- **Tổng giá trị giải ngân:** {total_cost:,.0f} đ"
         )
 
-        st.write(
-            f"- **Tỷ lệ Reward/Risk:** {reward_risk:.2f}"
-        )
+        
+        if reward_risk >= 2:
+            rr_text = "Rất tốt"
 
+        elif reward_risk >= 1:
+            rr_text = "Chấp nhận được"
+
+        elif reward_risk > 0:
+            rr_text = "Không hấp dẫn"
+
+        else:
+            rr_text = "Âm - Không nên giải ngân"
+
+        if reward_risk > 0:
+            st.write(
+                f"- **Reward/Risk:** {reward_risk:.2f} ({rr_text})"
+            )
+
+        else:
+            st.error(
+                f"Reward/Risk: {reward_risk:.2f} ({rr_text})"
+            )        
     with r_col2:
 
         st.subheader("📊 Chỉ số hiệu suất")
