@@ -99,7 +99,7 @@ def generate_ai_analysis(
         """
 
         response = client.chat.completions.create(
-            model="llama3-70b-8192",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {
                     "role": "user",
