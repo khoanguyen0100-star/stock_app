@@ -895,26 +895,6 @@ var_95 = (
     S0
 ) * 100
 
-ai_analysis = generate_ai_analysis(
-    ticker=TICKER,
-    current_price=S0,
-    expected_price=expected_price,
-    expected_return=expected_return,
-    win_rate=win_rate_val,
-    beta=beta_val,
-    current_state=state_desc[curr_st],
-    rs_status=rs_status,
-    reward_risk=reward_risk,
-    p25=p25,
-    p50=p50,
-    p75=p75,
-    sharpe_ratio=sharpe_ratio,
-    max_drawdown=max_dd,
-    var_95=var_95
-)
-
-else:
-
-    st.error(
-        "⚠️ Không thể tải dữ liệu. Vui lòng kiểm tra lại mã cổ phiếu."
-    )
+File "/mount/src/stock_app/app_11.py", line 916
+  else: 
+st.error( "⚠️ Không thể tải dữ liệu. Vui lòng kiểm tra lại mã cổ phiếu.")
