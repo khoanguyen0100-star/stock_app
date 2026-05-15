@@ -69,6 +69,9 @@ RISK_PER_TRADE = st.sidebar.slider(
 # =========================
 # AI ANALYSIS
 # =========================
+# =========================
+# GROQ AI ANALYSIS
+# =========================
 def generate_ai_analysis(
     ticker,
     current_price,
@@ -82,68 +85,98 @@ def generate_ai_analysis(
     p25,
     p50,
     p75,
-    sharpe,
-    var_95,
-    max_dd
+    sharpe_ratio,
+    max_drawdown,
+    var_95
 ):
-
     try:
+
         api_key = st.secrets.get("GROQ_API_KEY", None)
 
         if not api_key:
-            return "⚠️ Chưa cấu hình GROQ_API_KEY trong Streamlit Secrets"
+            return "⚠️ Chưa cấu hình GROQ_API_KEY trong Streamlit Secrets."
 
         client = Groq(api_key=api_key)
 
         prompt = f"""
-Bạn là chuyên gia quản lý quỹ và phân tích định lượng.
+Bạn là CIO của một quỹ hedge fund định lượng.
 
-Phân tích cổ phiếu {ticker}:
+Hãy viết báo cáo investment note chuyên nghiệp bằng tiếng Việt.
+
+Dữ liệu cổ phiếu {ticker}:
+
+====================
+MARKET DATA
+====================
 
 - Giá hiện tại: {current_price:,.0f} VNĐ
 - Giá kỳ vọng: {expected_price:,.0f} VNĐ
 - Expected Return: {expected_return:.2f}%
 - Win Rate: {win_rate:.2f}%
 - Beta: {beta:.2f}
+
+====================
+RISK METRICS
+====================
+
+- Reward/Risk: {reward_risk:.2f}
+- Sharpe Ratio: {sharpe_ratio:.2f}
+- Max Drawdown: {max_drawdown:.2f}%
+- VaR 95%: {var_95:.2f}%
+
+====================
+REGIME & RELATIVE
+====================
+
 - Trạng thái HMM: {current_state}
 - Relative Strength: {rs_status}
-- Reward/Risk: {reward_risk:.2f}
-- Sharpe Ratio: {sharpe:.2f}
-- VaR 95%: {var_95:.2f}%
-- Max Drawdown: {max_dd:.2f}%
 
-Percentiles:
+====================
+MONTE CARLO
+====================
+
 - P25: {p25:,.0f}
 - P50: {p50:,.0f}
 - P75: {p75:,.0f}
 
-Yêu cầu:
-- Nhận định xu hướng
-- Đánh giá rủi ro
-- Đánh giá xác suất
-- Hành động phù hợp
+====================
+YÊU CẦU
+====================
 
-Viết bằng tiếng Việt.
-Phong cách hedge fund chuyên nghiệp.
-Ngắn gọn dưới 250 từ.
+1. Nhận định xu hướng hiện tại
+2. Giải thích xung đột tín hiệu nếu có
+3. Đánh giá risk/reward
+4. Phân tích xác suất Monte Carlo
+5. Đưa ra hành động:
+   - Giải ngân
+   - Theo dõi
+   - Hạn chế mua
+
+QUY TẮC:
+- Viết như báo cáo hedge fund
+- Không viết kiểu chatbot
+- Không hype
+- Không dùng emoji
+- Ngắn gọn 180-250 từ
+- Văn phong chuyên nghiệp
 """
 
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {
                     "role": "user",
                     "content": prompt
                 }
             ],
-            temperature=0.3,
-            max_tokens=400
+            temperature=0.2,
+            max_tokens=500
         )
 
         return response.choices[0].message.content
 
     except Exception as e:
-        return f"Lỗi AI Groq: {str(e)}"
+        return f"⚠️ Lỗi AI Groq: {str(e)}"
 
 # =========================
 # LOAD DATA
@@ -839,25 +872,46 @@ if df is not None:
 
     st.subheader("🧠 Nhận định AI từ Groq")
 
-    ai_analysis = generate_ai_analysis(
-        ticker=TICKER,
-        current_price=S0,
-        expected_price=expected_price,
-        expected_return=expected_return,
-        win_rate=win_rate_val,
-        beta=beta_val,
-        current_state=state_desc[curr_st],
-        rs_status=rs_status,
-        reward_risk=reward_risk,
-        p25=p25,
-        p50=p50,
-        p75=p75,
-        sharpe=sharpe_ratio,
-        var_95=var_95,
-        max_dd=max_dd
-    )
+ # Sharpe Ratio
+risk_free_rate = 0.03 / 252
 
-    st.info(ai_analysis)
+strategy_returns = df['strategy_ret'].dropna()
+
+if strategy_returns.std() != 0:
+    sharpe_ratio = (
+        (strategy_returns.mean() - risk_free_rate)
+        /
+        strategy_returns.std()
+    ) * np.sqrt(252)
+else:
+    sharpe_ratio = 0
+
+# VaR 95%
+var_95 = np.percentile(final_prices, 5)
+
+var_95 = (
+    (var_95 - S0)
+    /
+    S0
+) * 100
+
+ai_analysis = generate_ai_analysis(
+    ticker=TICKER,
+    current_price=S0,
+    expected_price=expected_price,
+    expected_return=expected_return,
+    win_rate=win_rate_val,
+    beta=beta_val,
+    current_state=state_desc[curr_st],
+    rs_status=rs_status,
+    reward_risk=reward_risk,
+    p25=p25,
+    p50=p50,
+    p75=p75,
+    sharpe_ratio=sharpe_ratio,
+    max_drawdown=max_dd,
+    var_95=var_95
+)
 
 else:
 
