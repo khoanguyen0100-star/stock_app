@@ -733,4 +733,4 @@ if df is not None:
     )
 
     st.info(ai_analysis)
-```
+
