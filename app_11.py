@@ -865,36 +865,70 @@ if df is not None:
 
     st.pyplot(fig_bt)
 
-    # =========================
+        # =========================
     # AI ANALYSIS
     # =========================
     st.divider()
 
     st.subheader("🧠 Nhận định AI từ Groq")
 
- # Sharpe Ratio
-risk_free_rate = 0.03 / 252
+    # =========================
+    # SHARPE RATIO
+    # =========================
+    risk_free_rate = 0.03 / 252
 
-strategy_returns = df['strategy_ret'].dropna()
+    strategy_returns = df['strategy_ret'].dropna()
 
-if strategy_returns.std() != 0:
-    sharpe_ratio = (
-        (strategy_returns.mean() - risk_free_rate)
+    if strategy_returns.std() != 0:
+
+        sharpe_ratio = (
+            (
+                strategy_returns.mean()
+                - risk_free_rate
+            )
+            /
+            strategy_returns.std()
+        ) * np.sqrt(252)
+
+    else:
+
+        sharpe_ratio = 0
+
+    # =========================
+    # VAR 95%
+    # =========================
+    var_price_95 = np.percentile(
+        final_prices,
+        5
+    )
+
+    var_95 = (
+        (
+            var_price_95 - S0
+        )
         /
-        strategy_returns.std()
-    ) * np.sqrt(252)
-else:
-    sharpe_ratio = 0
+        S0
+    ) * 100
 
-# VaR 95%
-var_95 = np.percentile(final_prices, 5)
+    # =========================
+    # AI CALL
+    # =========================
+    ai_analysis = generate_ai_analysis(
+        ticker=TICKER,
+        current_price=S0,
+        expected_price=expected_price,
+        expected_return=expected_return,
+        win_rate=win_rate_val,
+        beta=beta_val,
+        current_state=state_desc[curr_st],
+        rs_status=rs_status,
+        reward_risk=reward_risk,
+        p25=p25,
+        p50=p50,
+        p75=p75,
+        sharpe_ratio=sharpe_ratio,
+        max_drawdown=max_dd,
+        var_95=var_95
+    )
 
-var_95 = (
-    (var_95 - S0)
-    /
-    S0
-) * 100
-
-File "/mount/src/stock_app/app_11.py", line 916
-  else: 
-st.error( "⚠️ Không thể tải dữ liệu. Vui lòng kiểm tra lại mã cổ phiếu.")
+    st.info(ai_analysis)
