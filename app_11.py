@@ -379,18 +379,19 @@ if df is not None:
     # REGIME PERSISTENCE
     # =========================
     # =========================
+# =========================
 # REMAP TRANSITION MATRIX
 # =========================
-remapped_transmat = np.zeros_like(model.transmat_)
+    remapped_transmat = np.zeros_like(model.transmat_)
 
-for old_i, new_i in new_labels.items():
-    for old_j, new_j in new_labels.items():
+    for old_i, new_i in new_labels.items():
+        for old_j, new_j in new_labels.items():
 
-        remapped_transmat[new_i][new_j] = (
-            model.transmat_[old_i][old_j]
+            remapped_transmat[new_i][new_j] = (
+                model.transmat_[old_i][old_j]
         )
 
-transition_prob = remapped_transmat[curr_st][curr_st]
+    transition_prob = remapped_transmat[curr_st][curr_st]
 
     # =========================
     # SIGNAL ENGINE
