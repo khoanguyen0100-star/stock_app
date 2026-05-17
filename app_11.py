@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import os
 from hmmlearn.hmm import GaussianHMM
 from vnstock.ui import Market
 from datetime import datetime, timedelta
@@ -53,7 +53,7 @@ DAYS_TO_PREDICT = st.sidebar.number_input(
 N_SIM = st.sidebar.select_slider(
     "Số lượng mô phỏng (N)",
     options=[1000, 5000, 10000],
-    value=10000
+    value=1000
 )
 
 st.sidebar.subheader("Quản trị rủi ro")
@@ -120,7 +120,7 @@ def generate_ai_analysis(
 
     try:
 
-        api_key = st.secrets.get("GROQ_API_KEY", None)
+        api_key = os.getenv("GROQ_API_KEY")
 
         if not api_key:
             return "⚠️ Chưa cấu hình GROQ_API_KEY."
@@ -356,14 +356,15 @@ if df is not None:
     )
 
     X = df[['ret_stock', 'volatility']].values
-
     model = GaussianHMM(
-        n_components=3,
-        covariance_type="diag",
-        n_iter=1000,
-        random_state=42
+    n_components=3,
+    covariance_type="diag",
+    n_iter=200,
+    tol=0.01,
+    random_state=42
     )
-
+    
+    X = np.nan_to_num(X)
     model.fit(X)
 
     means = model.means_[:, 0]
