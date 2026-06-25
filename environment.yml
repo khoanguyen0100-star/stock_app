@@ -1,0 +1,5 @@
+name: stock_app
+channels:
+  - defaults
+dependencies:
+  - python=3.11
