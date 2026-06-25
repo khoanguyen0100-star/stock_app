@@ -3,7 +3,7 @@ pandas
 numpy
 matplotlib
 seaborn
-hmmlearn==0.3.2
+hmmlearn
 vnstock
 scipy
 streamlit
