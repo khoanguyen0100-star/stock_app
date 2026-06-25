@@ -6,7 +6,6 @@ seaborn
 hmmlearn
 vnstock
 scipy
-streamlit
 arch
 plotly
 groq
